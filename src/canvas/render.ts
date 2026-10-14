@@ -17,7 +17,7 @@ import { ORIGIN_ID } from '../model/types';
 import type { SolveReport } from '../solver/solver';
 import { frame, gridStep } from './hit';
 import type { Snap } from './hit';
-import { POINT_RADIUS, theme } from './theme';
+import { CONSTRUCTION_DASH, POINT_RADIUS, theme } from './theme';
 import { toScreen, toWorld } from './view';
 import type { View } from './view';
 
@@ -54,9 +54,11 @@ export interface RenderInput {
   hover: Id | null;
   preview: Preview;
   editingDimension: Id | null;
+  showGrid: boolean;
+  showRelations: boolean;
 }
 
-const BADGE_GLYPH: Partial<Record<ConstraintKind, string>> = {
+export const BADGE_GLYPH: Partial<Record<ConstraintKind, string>> = {
   horizontal: 'H',
   vertical: 'V',
   parallel: '∥',
@@ -73,15 +75,18 @@ const BADGE_GLYPH: Partial<Record<ConstraintKind, string>> = {
 
 export function render(ctx: CanvasRenderingContext2D, input: RenderInput) {
   const { view } = input;
-  ctx.fillStyle = theme.background;
+  const bg = ctx.createLinearGradient(0, 0, 0, view.height);
+  bg.addColorStop(0, theme.backgroundTop);
+  bg.addColorStop(1, theme.backgroundBottom);
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, view.width, view.height);
-  drawGrid(ctx, view);
+  if (input.showGrid) drawGrid(ctx, view);
 
   const colors = statusColors(input);
   drawEntities(ctx, input, colors);
   frame.labels.clear();
   frame.badges = [];
-  drawBadges(ctx, input);
+  if (input.showRelations) drawBadges(ctx, input);
   for (const d of Object.values(input.doc.dimensions)) drawDimension(ctx, input, d, false);
   if (input.preview.dimension) drawDimension(ctx, input, input.preview.dimension, true);
   drawPreview(ctx, input);
@@ -113,19 +118,6 @@ function drawGrid(ctx: CanvasRenderingContext2D, view: View) {
   };
   lines(step, theme.gridMinor);
   lines(major, theme.gridMajor);
-
-  const o = toScreen(view, { x: 0, y: 0 });
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = theme.axisX;
-  ctx.beginPath();
-  ctx.moveTo(0, Math.round(o.y) + 0.5);
-  ctx.lineTo(view.width, Math.round(o.y) + 0.5);
-  ctx.stroke();
-  ctx.strokeStyle = theme.axisY;
-  ctx.beginPath();
-  ctx.moveTo(Math.round(o.x) + 0.5, 0);
-  ctx.lineTo(Math.round(o.x) + 0.5, view.height);
-  ctx.stroke();
 }
 
 /* ---------- Geometry ---------- */
@@ -147,9 +139,9 @@ function statusColors(input: RenderInput) {
 
 function entityStyle(input: RenderInput, e: Entity, color: (id: Id) => string) {
   const picked = input.preview.picks.includes(e.id);
-  if (input.selection.has(e.id) || picked) return { stroke: theme.selected, width: 2.25 };
-  if (input.hover === e.id) return { stroke: theme.hover, width: 2.25 };
-  return { stroke: color(e.id), width: 1.5 };
+  if (input.selection.has(e.id) || picked) return { stroke: theme.selected, width: 2 };
+  if (input.hover === e.id) return { stroke: theme.hover, width: 2 };
+  return { stroke: color(e.id), width: 1.25 };
 }
 
 function traceEntity(ctx: CanvasRenderingContext2D, doc: Doc, view: View, e: Entity) {
@@ -178,8 +170,8 @@ function drawEntities(ctx: CanvasRenderingContext2D, input: RenderInput, color: 
     if (e.type === 'point') continue;
     const style = entityStyle(input, e, color);
     ctx.strokeStyle = style.stroke;
-    ctx.lineWidth = e.construction ? Math.max(1, style.width - 0.5) : style.width;
-    ctx.setLineDash(e.construction ? [7, 5] : []);
+    ctx.lineWidth = e.construction ? style.width - 0.25 : style.width;
+    ctx.setLineDash(e.construction ? CONSTRUCTION_DASH : []);
     traceEntity(ctx, doc, view, e);
     ctx.stroke();
   }
@@ -208,22 +200,28 @@ function drawEntities(ctx: CanvasRenderingContext2D, input: RenderInput, color: 
       ctx.stroke();
     } else {
       ctx.beginPath();
-      ctx.arc(s.x, s.y, style.width > 2 ? POINT_RADIUS + 1 : POINT_RADIUS, 0, Math.PI * 2);
+      ctx.arc(s.x, s.y, style.width > 1.5 ? POINT_RADIUS + 1 : POINT_RADIUS, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 }
 
 function drawOrigin(ctx: CanvasRenderingContext2D, s: Vec, color: string) {
+  const L = 34;
   ctx.strokeStyle = color;
+  ctx.fillStyle = color;
   ctx.lineWidth = 1.25;
   ctx.beginPath();
-  ctx.arc(s.x, s.y, 5, 0, Math.PI * 2);
-  ctx.moveTo(s.x - 9, s.y);
-  ctx.lineTo(s.x + 9, s.y);
-  ctx.moveTo(s.x, s.y - 9);
-  ctx.lineTo(s.x, s.y + 9);
+  ctx.moveTo(s.x, s.y);
+  ctx.lineTo(s.x + L, s.y);
+  ctx.moveTo(s.x, s.y);
+  ctx.lineTo(s.x, s.y - L);
   ctx.stroke();
+  arrow(ctx, { x: s.x + L + 2, y: s.y }, { x: 1, y: 0 });
+  arrow(ctx, { x: s.x, y: s.y - L - 2 }, { x: 0, y: -1 });
+  ctx.beginPath();
+  ctx.arc(s.x, s.y, 2.5, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 /* ---------- Constraint badges ---------- */
@@ -287,7 +285,7 @@ function drawBadges(ctx: CanvasRenderingContext2D, input: RenderInput) {
       ctx.strokeStyle = flagged ? theme.overDefined : active ? theme.selected : theme.badgeBorder;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.roundRect(rect.x + 0.5, rect.y + 0.5, rect.w - 1, rect.h - 1, 3);
+      ctx.rect(rect.x + 0.5, rect.y + 0.5, rect.w - 1, rect.h - 1);
       ctx.fill();
       ctx.stroke();
       ctx.fillStyle = active ? '#fff' : flagged ? theme.overDefined : theme.badgeText;
@@ -331,7 +329,9 @@ function drawDimension(ctx: CanvasRenderingContext2D, input: RenderInput, d: Dim
   const color = preview
     ? theme.preview
     : active
-      ? theme.selected
+      ? input.selection.has(d.id)
+        ? theme.selected
+        : theme.hover
       : flagged
         ? theme.overDefined
         : d.driving
@@ -426,16 +426,13 @@ function drawDimension(ctx: CanvasRenderingContext2D, input: RenderInput, d: Dim
   const w = ctx.measureText(text).width + 10;
   const rect: Rect = { x: L.x - w / 2, y: L.y - 9, w, h: 18 };
   if (!preview) frame.labels.set(d.id, rect);
-  if (input.editingDimension === d.id) return;
-  ctx.fillStyle = active ? theme.selected : '#ffffff';
-  ctx.strokeStyle = active ? theme.selected : flagged ? theme.overDefined : 'rgba(148,163,184,0.6)';
-  ctx.beginPath();
-  ctx.roundRect(rect.x, rect.y, rect.w, rect.h, 4);
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = active ? '#ffffff' : color;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(247, 248, 250, 0.85)';
+  ctx.strokeText(text, L.x, L.y + 0.5);
+  ctx.fillStyle = color;
   ctx.fillText(text, L.x, L.y + 0.5);
 }
 

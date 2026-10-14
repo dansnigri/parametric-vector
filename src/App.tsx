@@ -1,11 +1,10 @@
 import { useEffect } from 'react';
 import { Viewport } from './canvas/Viewport';
 import { useStore } from './store/store';
-import { Inspector } from './ui/Inspector';
-import { ParametersPanel } from './ui/ParametersPanel';
+import { PropertyManager } from './ui/PropertyManager';
+import { Ribbon } from './ui/Ribbon';
 import { StatusBar, Toast } from './ui/StatusBar';
-import { Toolbar } from './ui/Toolbar';
-import { TopBar } from './ui/TopBar';
+import { TitleBar } from './ui/TitleBar';
 
 export default function App() {
   const init = useStore((s) => s.init);
@@ -17,17 +16,14 @@ export default function App() {
 
   return (
     <div className="app">
-      <TopBar />
+      <TitleBar />
+      <Ribbon />
       <div className="workspace">
-        <Toolbar />
+        <PropertyManager />
         <main className="canvas-area">
           <Viewport />
           <Toast />
         </main>
-        <aside className="sidebar">
-          <Inspector />
-          <ParametersPanel />
-        </aside>
       </div>
       <StatusBar />
     </div>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { dimensionAnchor } from '../model/doc';
 import { add } from '../model/geometry';
 import { useStore } from '../store/store';
+import { Icon } from '../ui/icons';
 import { ToolController, controllerRef } from './controller';
 import { render } from './render';
 import { toScreen } from './view';
@@ -40,6 +41,8 @@ export function Viewport() {
         hover: s.hover,
         preview: c.preview,
         editingDimension: s.editingDimension,
+        showGrid: s.showGrid,
+        showRelations: s.showRelations,
       });
       canvas.style.cursor = c.cursorStyle;
     };
@@ -131,7 +134,65 @@ export function Viewport() {
   return (
     <div className="viewport" ref={wrapRef}>
       <canvas ref={canvasRef} />
+      <HeadsUpToolbar />
+      <ConfirmationCorner />
       {editingDimension && <DimensionEditor key={editingDimension} id={editingDimension} view={view} />}
+    </div>
+  );
+}
+
+function HeadsUpToolbar() {
+  const showRelations = useStore((s) => s.showRelations);
+  const showGrid = useStore((s) => s.showGrid);
+  const { setShowRelations, setShowGrid } = useStore.getState();
+  return (
+    <div className="hud-toolbar" role="toolbar" aria-label="View">
+      <button title="Zoom to Fit (F)" aria-label="Zoom to Fit" onClick={() => controllerRef.current?.fit()}>
+        <Icon name="fit" size={18} />
+      </button>
+      <span className="hud-sep" />
+      <button
+        title="Display sketch relations"
+        aria-label="Display sketch relations"
+        aria-pressed={showRelations}
+        className={showRelations ? 'on' : ''}
+        onClick={() => setShowRelations(!showRelations)}
+      >
+        <Icon name="relations" size={18} />
+      </button>
+      <button
+        title="Display grid"
+        aria-label="Display grid"
+        aria-pressed={showGrid}
+        className={showGrid ? 'on' : ''}
+        onClick={() => setShowGrid(!showGrid)}
+      >
+        <Icon name="grid" size={18} />
+      </button>
+    </div>
+  );
+}
+
+function ConfirmationCorner() {
+  const tool = useStore((s) => s.tool);
+  const hasSelection = useStore((s) => s.selection.length > 0);
+  if (tool === 'select' && !hasSelection) return null;
+  const close = () => {
+    const s = useStore.getState();
+    if (s.tool !== 'select') {
+      controllerRef.current?.cancel();
+      s.setTool('select');
+    }
+    s.setSelection([]);
+  };
+  return (
+    <div className="confirm-corner">
+      <button title="OK" aria-label="OK" onClick={close}>
+        <Icon name="check" size={22} />
+      </button>
+      <button title="Cancel" aria-label="Cancel" onClick={close}>
+        <Icon name="close" size={18} />
+      </button>
     </div>
   );
 }
@@ -156,20 +217,38 @@ function DimensionEditor({ id, view }: { id: string; view: View }) {
   };
 
   return (
-    <div className="dim-editor" style={{ left: at.x, top: at.y }}>
-      <input
-        ref={inputRef}
-        value={value}
-        spellCheck={false}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') submit();
-          if (e.key === 'Escape') close();
-          e.stopPropagation();
-        }}
-        onBlur={close}
-      />
-      <div className="dim-editor-hint">{dim.kind === 'angle' ? 'Degrees' : 'Value'} or expression · Enter</div>
+    <div
+      className="modify-box"
+      style={{ left: at.x + 18, top: at.y + 14 }}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) close();
+      }}
+    >
+      <div className="modify-title">Modify</div>
+      <div className="modify-actions">
+        <button title="OK (Enter)" aria-label="OK" onMouseDown={(e) => e.preventDefault()} onClick={submit}>
+          <Icon name="check" size={16} />
+        </button>
+        <button title="Cancel (Esc)" aria-label="Cancel" onMouseDown={(e) => e.preventDefault()} onClick={close}>
+          <Icon name="close" size={14} />
+        </button>
+      </div>
+      <div className="modify-field">
+        <input
+          ref={inputRef}
+          value={value}
+          spellCheck={false}
+          aria-label="Dimension value"
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit();
+            if (e.key === 'Escape') close();
+            e.stopPropagation();
+          }}
+        />
+        <span className="modify-unit">{dim.kind === 'angle' ? 'deg' : 'mm'}</span>
+      </div>
+      <div className="modify-name">D{id.replace(/^\D+/, '')}@Sketch1</div>
     </div>
   );
 }

@@ -42,7 +42,7 @@ Dimension values accept expressions using parameter names, e.g. `stroke * 1.5`. 
 - `src/solver` – maps the document onto the [planegcs](https://github.com/Salusoft89/planegcs) WebAssembly constraint solver (FreeCAD's sketch solver, LGPL)
 - `src/store` – Zustand store: document, undo history, selection, solve status
 - `src/canvas` – viewport, renderer, hit-testing/snapping and the tool state machine
-- `src/ui` – panels (toolbar, inspector, parameters, status bar)
+- `src/ui` – CAD-style chrome (title bar, command ribbon, property panel, global variables, status bar)
 - `src/io` – JSON save/load and SVG export
 
 The document is autosaved to the browser's local storage.

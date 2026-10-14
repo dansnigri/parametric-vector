@@ -42,6 +42,8 @@ interface State {
   tool: ToolName;
   construction: boolean;
   gridSnap: boolean;
+  showGrid: boolean;
+  showRelations: boolean;
   editingDimension: Id | null;
   toast: Toast | null;
   solverReady: boolean;
@@ -68,6 +70,8 @@ interface State {
   setCursor(p: Vec, zoom: number): void;
   setConstruction(on: boolean): void;
   setGridSnap(on: boolean): void;
+  setShowGrid(on: boolean): void;
+  setShowRelations(on: boolean): void;
   notify(text: string, kind?: Toast['kind']): void;
 
   addConstraints(kind: ConstraintKind, groups: Id[][]): boolean;
@@ -151,6 +155,8 @@ export const useStore = create<State>()((set, get) => {
     tool: 'select',
     construction: false,
     gridSnap: false,
+    showGrid: false,
+    showRelations: true,
     editingDimension: null,
     toast: null,
     solverReady: false,
@@ -257,6 +263,12 @@ export const useStore = create<State>()((set, get) => {
     },
     setGridSnap(on) {
       set({ gridSnap: on });
+    },
+    setShowGrid(on) {
+      set({ showGrid: on });
+    },
+    setShowRelations(on) {
+      set({ showRelations: on });
     },
     notify(text, kind = 'info') {
       set({ toast: { text, kind, at: Date.now() } });

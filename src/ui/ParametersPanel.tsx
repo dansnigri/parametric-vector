@@ -77,20 +77,13 @@ function ParameterRow({ param }: { param: Parameter }) {
   );
 }
 
-export function ParametersPanel() {
+export function ParametersTable() {
   const params = useStore((s) => s.doc.parameters);
-  const addParameter = useStore((s) => s.addParameter);
 
   return (
-    <section className="panel-section parameters">
-      <div className="section-header">
-        <h3>Parameters</h3>
-        <button className="small-button" onClick={addParameter}>
-          <Icon name="plus" size={14} /> Add
-        </button>
-      </div>
+    <>
       {params.length === 0 ? (
-        <p className="hint">
+        <p className="pm-note">
           Named values that drive dimensions, e.g. <code>stroke = 12</code> and a dimension of <code>stroke * 1.5</code>.
         </p>
       ) : (
@@ -98,7 +91,7 @@ export function ParametersPanel() {
           <thead>
             <tr>
               <th>Name</th>
-              <th>Expression</th>
+              <th>Value / Equation</th>
               <th>Value</th>
               <th />
             </tr>
@@ -110,6 +103,6 @@ export function ParametersPanel() {
           </tbody>
         </table>
       )}
-    </section>
+    </>
   );
 }
